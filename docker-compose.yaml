@@ -1,0 +1,9 @@
+services:
+  bot:
+    container_name: old_tom
+    image: old-tom:latest
+    build: .
+    restart: always
+    # a volume to store sqlite db file
+    volumes:
+      - ./timezones.db:/app/timezones.db
