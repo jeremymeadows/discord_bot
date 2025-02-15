@@ -6,7 +6,7 @@ IDENTITY_KEY=~/.ssh/vps
 APP_ROOT=/bots/old_tom
 
 name=old-tom
-version=1.0
+version=1.1
 
 docker build --network host -t $name:$version
 docker image tag $name:$version $name:latest
