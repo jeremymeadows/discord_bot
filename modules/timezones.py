@@ -8,6 +8,7 @@ import pytz
 
 from discord import app_commands
 
+
 TIME_FORMATS = [
     (r'[01]\d:[0-6]\d [ap]m', "%I:%M %p"),
     (r'[01]\d:[0-6]\d[ap]m', "%I:%M%p"),
@@ -30,9 +31,23 @@ async def zone_autocomplete(interaction: discord.Interaction, current: str) -> [
 
 
 def load(bot):
-    with sqlite3.connect('timezones.db') as db:
+    bot.modules += ["**timezones**: convert local times into discord timestamps for other users"]
+
+    @bot.tree.command(name="help-timezones", description="Information about the **timezones** module.")
+    async def help(interaction: discord.Interaction) -> None:
+        await interaction.response.send_message("\n".join([
+            "After registering yourself with the bot by selecting a time zone, it will automatically reply to your messages with a localised timestamp for other users to better understand when something will occur. Can also manually create timestamps to use anywhere in discord.",
+            "",
+            "Available commands:",
+            "  `/tz-set`: set your personal time zone",
+            "  `/tz-view`: view which time zone you have selected",
+            "  `/create-timestamp`: create various formatted timestamps to be able to copy/paste into a chat",
+        ]), ephemeral=True)
+
+
+    with sqlite3.connect("timezones.db") as db:
         if db.execute("SELECT name FROM sqlite_master WHERE name='users'").fetchone() is None:
-            print('initialising db')
+            print('initialising timezone db')
             db.execute("CREATE TABLE users(id NOT NULL, tz, PRIMARY KEY (id))")
             db.commit()
         print('timezone database connected')
@@ -68,7 +83,7 @@ def load(bot):
         async def tz_view_all(interaction: discord.Interaction) -> None:
             msg = ""
             for row in db.execute("SELECT id, tz FROM users").fetchall():
-                msg += f"<@{row[0]}>: UTC{row[1]}\n"
+                msg += f"<@{row[0]}>: {row[1]}\n"
             await interaction.response.send_message(msg, ephemeral=True)
 
 
@@ -87,7 +102,7 @@ def load(bot):
 
             db.execute(f"INSERT INTO users VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET tz=excluded.tz", (member.id, zone))
             db.commit()
-            await interaction.edit_original_response(content=f"{member.mention}'s timezone is set to {zone}")
+            await interaction.edit_original_response(content=f"{member.mention}'s timezone is set to **{zone}**")
 
 
         @bot.tree.context_menu(name="tz-view")
