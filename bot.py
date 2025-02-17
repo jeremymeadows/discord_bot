@@ -5,23 +5,27 @@ import discord
 from dotenv import load_dotenv
 from discord.ext import commands;
 
-import modules.timezones as timezones
-import modules.dynamic_channels as dynchannels
+from modules import *
+
+
+ENABLED_MODULES = [
+    timezones,
+    dynamic_channels,
+]
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
+
 intents = discord.Intents.none()
-intents.message_content = True
-intents.messages = True
-intents.guilds = True
-intents.voice_states = True
+for module in ENABLED_MODULES:
+    intents |= module.INTENTS
 
 bot = commands.Bot(command_prefix='/', intents=intents)
 setattr(bot, "modules", [])
 
-timezones.load(bot)
-dynchannels.load(bot)
+for module in ENABLED_MODULES:
+    module.load(bot)
 
 
 @bot.tree.command(name="help", description="Get help.")

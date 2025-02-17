@@ -9,6 +9,12 @@ import pytz
 from discord import app_commands
 
 
+INTENTS = discord.Intents(
+    message_content=True,
+    messages=True,
+)
+
+
 TIME_FORMATS = [
     (r'[01]\d:[0-6]\d [ap]m', "%I:%M %p"),
     (r'[01]\d:[0-6]\d[ap]m', "%I:%M%p"),
@@ -26,7 +32,6 @@ def convert_to_utc(dt: datetime, tz: str) -> int:
 
 
 async def zone_autocomplete(interaction: discord.Interaction, current: str) -> [app_commands.Choice[str]]:
-    options = pytz.all_timezones
     return [app_commands.Choice(name=e, value=e) for e in pytz.all_timezones if current.lower() in e.lower()][:25]
 
 
@@ -84,7 +89,7 @@ def load(bot):
             msg = ""
             for row in db.execute("SELECT id, tz FROM users").fetchall():
                 msg += f"<@{row[0]}>: {row[1]}\n"
-            await interaction.response.send_message(msg, ephemeral=True)
+            await interaction.response.send_message(msg or "No timezones have been set.", ephemeral=True)
 
 
         @bot.tree.context_menu(name="tz-set")
@@ -114,7 +119,7 @@ def load(bot):
 
 
         @bot.tree.command(name="create-timestamp", description="Create a copy/pastable timestamp for discord.")
-        async def tz_view_all(interaction: discord.Interaction, hour: int, minute: int = 0, second: int = 0, year: int = datetime.today().year, month: int = datetime.today().month, day: int = datetime.today().day) -> None:
+        async def tz_create_timestamp(interaction: discord.Interaction, hour: int, minute: int = 0, second: int = 0, year: int = datetime.today().year, month: int = datetime.today().month, day: int = datetime.today().day) -> None:
             tz = db.execute(f"SELECT tz FROM users WHERE id={interaction.user.id}").fetchone()
             if tz is None:
                 await interaction.response.send_message("You need to register your timezone with `/tz-set` before you can create a timestamp.", ephemeral=True)
@@ -134,7 +139,7 @@ def load(bot):
 
 
         @bot.event
-        async def on_message(message):
+        async def on_message(message: str) -> None:
             if message.author.bot:
                 return
 

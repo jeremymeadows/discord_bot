@@ -1,11 +1,15 @@
 import re
 import sqlite3
 
-from datetime import datetime
-
 import discord
 
 from discord import app_commands
+
+
+INTENTS = discord.Intents(
+    guilds=True,
+    voice_states=True,
+)
 
 
 PERMISSIONS = discord.PermissionOverwrite.from_pair(
@@ -23,8 +27,9 @@ def load(bot):
             "When any user joins the designated Lobby, they will be moved to a newly created voice channel and given permission to rename/manage it. When nobody is left in there, it will be deleted.",
             "",
             "Available commands:",
-            "  `/vc-set-lobby`: set the channel to be treated as the lobby",
-            "  `/vc-remove-lobby`: remove the specific lobby and disable its dynamic voice channels",
+            "  `/vc-set`: set the channel to be treated as the lobby",
+            "  `/vc-remove`: remove a lobby and disable its dynamic voice channels",
+            "  `/vc-view`: view which channel was set to be the lobby",
         ]), ephemeral=True)
 
 
@@ -38,7 +43,7 @@ def load(bot):
 
 
         @bot.event
-        async def on_voice_state_update(member, before, after):
+        async def on_voice_state_update(member, before, after) -> None:
             if member.bot:
                 return
 
@@ -54,15 +59,26 @@ def load(bot):
                     db.commit()
 
 
-        @bot.tree.command(name="vc-set-lobby", description="Set the lobby for dynamic voice channels.")
-        async def vc_set_lobby(interaction: discord.Interaction, channel: discord.VoiceChannel) -> None:
-            db.execute(f"INSERT INTO channels VALUES (?, 'lobby') ON CONFLICT DO NOTHING", [channel.id])
+        @bot.tree.command(name="vc-set", description="Set the lobby for dynamic voice channels.")
+        @app_commands.describe(channel="The channel to serve as a lobby.")
+        async def vc_set(interaction: discord.Interaction, channel: discord.VoiceChannel) -> None:
+            db.execute("INSERT INTO channels VALUES (?, 'lobby') ON CONFLICT DO NOTHING", [channel.id])
             db.commit()
             await interaction.response.send_message(f"VC lobby set to **{channel.name}**.", ephemeral=True)
 
 
-        @bot.tree.command(name="vc-remove-lobby", description="Remove the lobby for dynamic voice channels.")
-        async def vc_remove_lobby(interaction: discord.Interaction, channel: discord.VoiceChannel) -> None:
-            db.execute(f"DELETE FROM channels WHERE id = ?", [channel.id])
+        @bot.tree.command(name="vc-remove", description="Remove the lobby for dynamic voice channels.")
+        @app_commands.describe(channel="The lobby to remove.")
+        async def vc_remove(interaction: discord.Interaction, channel: discord.VoiceChannel) -> None:
+            db.execute("DELETE FROM channels WHERE id = ?", [channel.id])
             db.commit()
             await interaction.response.send_message(f"VC lobby **{channel.name}** was removed.", ephemeral=True)
+
+
+        @bot.tree.command(name="vc-view", description="View the lobby for dynamic voice channels.")
+        async def vc_view(interaction: discord.Interaction) -> None:
+            msg = ""
+            for row in db.execute("SELECT id FROM channels WHERE type = 'lobby'").fetchall():
+                if row["id"] in (channel.id for channel in interaction.guild.voice_channels):
+                    msg += f"<#{row["id"]}>\n"
+            await interaction.response.send_message(msg or "No lobbies set for current server.", ephemeral=True)
