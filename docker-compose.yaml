@@ -4,8 +4,8 @@ services:
     image: old-tom:latest
     build: .
     restart: always
-    # a volume to store sqlite db file
     volumes:
       - ./.env:/app/.env
       - ./timezones.db:/app/timezones.db
       - ./dynamic-channels.db:/app/dynamic-channels.db
+      - ./events.db:/app/events.db

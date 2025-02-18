@@ -22,9 +22,9 @@
     # `nix develop`
     devShells.${system}.default = pkgs.mkShell {
       packages = requirements;
-      shellHook = ''
-        python bot.py
-      '';
+      #shellHook = ''
+        #python bot.py
+      #'';
     };
 
     # `nix build`

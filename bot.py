@@ -1,4 +1,5 @@
 import os
+import sys
 
 import discord
 
@@ -11,13 +12,19 @@ from modules import *
 ENABLED_MODULES = [
     timezones,
     dynamic_channels,
+    events,
 ]
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
+if ("--help" in sys.argv):
+    import modules
+    print("Usage: `python bot.py`\n(don't forget a `.env` file with discord token)\n\nAvailable modules:")
+    print("\n".join("  " + mod for mod in modules.__all__))
+    exit(0)
 
-intents = discord.Intents.none()
+intents = discord.Intents(message_content=True)
 for module in ENABLED_MODULES:
     intents |= module.INTENTS
 

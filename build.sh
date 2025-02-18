@@ -1,12 +1,13 @@
 #!/bin/sh
 
+name=old-tom
+version=1.3.0
+
+
 USER=root
 REMOTE_HOST=vps.jeremymeadows.dev
 IDENTITY_KEY=~/.ssh/vps
 APP_ROOT=/bots/old_tom
-
-name=old-tom
-version=1.2
 
 set -e
 
@@ -25,6 +26,7 @@ if [ "$1" = "--deploy" ]; then
         cd $APP_ROOT
         touch timezones.db
         touch dynamic-channels.db
+        touch events.db
 
         docker image tag $name:$version $name:latest
         docker compose down

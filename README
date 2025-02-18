@@ -1,0 +1,8 @@
+Old Tom is a discord bot for my GW2 fractal guild named after the golem boss in
+Uncategorized.
+
+He has different modules which help manage the guild and scheduling between
+players. More info can be read in the `help` function of each module.
+
+**Note**: this bot is only intended to be in one discord server at the moment,
+as there is no segregation in the databases and data can leak between servers
