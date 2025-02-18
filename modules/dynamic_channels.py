@@ -1,4 +1,3 @@
-import re
 import sqlite3
 
 import discord
@@ -33,9 +32,9 @@ def load(bot):
         ]), ephemeral=True)
 
 
-    with sqlite3.connect("dynamic_channels.db") as db:
+    with sqlite3.connect("data/dynamic_channels.db") as db:
         db.row_factory = sqlite3.Row
-        if db.execute("SELECT name FROM sqlite_master WHERE name='channels'").fetchone() is None:
+        if db.execute("SELECT * FROM sqlite_master").fetchone() is None:
             print('initialising dynamic_channel db')
             db.execute("CREATE TABLE channels(id NOT NULL, type, PRIMARY KEY (id))")
             db.commit()
@@ -80,5 +79,5 @@ def load(bot):
             msg = ""
             for row in db.execute("SELECT id FROM channels WHERE type = 'lobby'").fetchall():
                 if row["id"] in (channel.id for channel in interaction.guild.voice_channels):
-                    msg += f"<#{row["id"]}>\n"
+                    msg += f"<#{row['id']}>\n"
             await interaction.response.send_message(msg or "No lobbies set for current server.", ephemeral=True)

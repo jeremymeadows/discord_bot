@@ -10,7 +10,6 @@ from discord import app_commands
 
 
 INTENTS = discord.Intents(
-    message_content=True,
     messages=True,
 )
 
@@ -50,8 +49,8 @@ def load(bot):
         ]), ephemeral=True)
 
 
-    with sqlite3.connect("timezones.db") as db:
-        if db.execute("SELECT name FROM sqlite_master WHERE name='users'").fetchone() is None:
+    with sqlite3.connect("data/timezones.db") as db:
+        if db.execute("SELECT * FROM sqlite_master").fetchone() is None:
             print('initialising timezone db')
             db.execute("CREATE TABLE users(id NOT NULL, tz, PRIMARY KEY (id))")
             db.commit()

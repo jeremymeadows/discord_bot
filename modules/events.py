@@ -65,7 +65,7 @@ def load(bot):
         ]), ephemeral=True)
 
 
-    with sqlite3.connect("events.db") as db:
+    with sqlite3.connect("data/events.db") as db:
         db.row_factory = sqlite3.Row
         if db.execute("SELECT * FROM sqlite_master").fetchone() is None:
             print("initialising events db")
@@ -176,7 +176,7 @@ def load(bot):
 
                     event = Event(**data)
                     team = db.execute("SELECT user_id, spec, notes FROM signups WHERE event_id = ?", [event_id]).fetchall()
-                    event.team = [f"{row["spec"]} {row["user_id"]}" + (f" ({row["notes"]})" if row["notes"] else "") for row in team]
+                    event.team = [f"{row['spec']} {row['user_id']}" + (f" ({row['notes']})" if row["notes"] else "") for row in team]
 
                     message = await interaction.channel.fetch_message(event_id)
                     await message.edit(content=event)
@@ -188,7 +188,7 @@ def load(bot):
 
                     event = Event(**data)
                     team = db.execute("SELECT user_id, spec, notes FROM signups WHERE event_id = ?", [interaction.message.id]).fetchall()
-                    event.team = [f"{row["spec"]} {row["user_id"]}" + (f" ({row["notes"]})" if row["notes"] else "") for row in team]
+                    event.team = [f"{row['spec']} {row['user_id']}" + (f" ({row['notes']})" if row["notes"] else "") for row in team]
                     await interaction.message.edit(content=event)
                     await interaction.response.send_message("Removed from event", ephemeral=True)
                 case _:
