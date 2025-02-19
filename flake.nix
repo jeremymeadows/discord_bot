@@ -27,10 +27,15 @@
     # `nix develop`
     devShells.${system}.default = pkgs.mkShell {
       packages = dependencies ++ devtools;
-      #shellHook = ''
-        #python bot.py
-      #'';
+      shellHook = ''
+        echo 'Environment created, `nix run` to start bot.'
+      '';
     };
+
+    # `nix run`
+    # apps.${system}.default = pkgs.writeShellScriptBin "main" ''
+    #   python bot.py
+    # '';
 
     # `nix build`
     build.${system}.default = pkgs.dockerTools.buildImage {

@@ -94,43 +94,36 @@ def load(bot):
                 db.commit()
                 return
 
-            event = Event()
-            content = ["Creating a new event, type `cancel` to abort.", "\nEnter a Title:"]
-            await interaction.response.send_message("\n".join(content), ephemeral=True)
+            async def on_submit(interaction: discord.Interaction):
+                event = Event()
+                event.commander = interaction.user.mention
+                event.title, event.desc, event.time = map(lambda e: e["components"][0]["value"], interaction.data["components"])
+                event.team = []
 
-            msg = title or (await bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=60)).content
-            event.title = msg
-            # await msg.delete()
-            content = content[:-1] + [f"\n**Title**: {event.title}", "\nEnter a description:"]
-            await interaction.edit_original_response(content="\n".join(content))
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(label="Sign Up / Change", custom_id="signup", style=discord.ButtonStyle.success))
+                view.add_item(discord.ui.Button(label="Sign Out", custom_id="signout", style=discord.ButtonStyle.danger))
+                post = await channel.send(event, view=view)
 
-            msg = description or (await bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=60)).content
-            event.description = msg
-            # await msg.delete()
-            content = content[:-1] + [f"\n**Description**: {event.description}", "\nEnter a timestamp:"]
-            await interaction.edit_original_response(content="\n".join(content))
+                try:
+                    db.execute("INSERT INTO events VALUES(?, ?, ?, ?, ?)", [post.id, event.title, event.description, event.time, event.commander])
+                    db.commit()
+                except:
+                    await post.delete()
+                    await interaction.response.send_message("Failed to add event to the database.", ephemeral=True)
+                    return
 
-            msg = time or (await bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=60)).content
-            event.time = msg
-            # await msg.delete()
-            content = content[:-1] + [f"\n**Date**: {event.time}", "\nCreated!"]
-            await interaction.edit_original_response(content="\n".join(content))
+                await interaction.response.send_message(post.jump_url, ephemeral=True)
 
-            event.commander = interaction.user.mention
-            event.team = []
-            view = discord.ui.View()
-            view.add_item(discord.ui.Button(label="Sign Up / Change", custom_id="signup", style=discord.ButtonStyle.success))
-            view.add_item(discord.ui.Button(label="Sign Out", custom_id="signout", style=discord.ButtonStyle.danger))
-            post = await channel.send(event, view=view)
-
-            try:
-                db.execute("INSERT INTO events VALUES(?, ?, ?, ?, ?)", [post.id, event.title, event.description, event.time, event.commander])
-                db.commit()
-            except:
-                await post.delete()
-                await interaction.edit_original_response("Failed to add event to the database.")
-
-            await interaction.followup.send(post.jump_url, ephemeral=True)
+            if title and description and time:
+                await on_submit(interaction)
+            else:
+                modal = discord.ui.Modal(title="Create an event")
+                modal.add_item(discord.ui.TextInput(label="Title", custom_id="title", default=title))
+                modal.add_item(discord.ui.TextInput(label="Description", custom_id="description", default=description, required=False, style=discord.TextStyle.long))
+                modal.add_item(discord.ui.TextInput(label="Time", custom_id="time", default=time))
+                modal.on_submit = on_submit
+                await interaction.response.send_modal(modal)
 
 
         async def update_event(channel_id: int, event_id: int):
@@ -151,9 +144,9 @@ def load(bot):
                 await interaction.response.send_message("Invalid Event", ephemeral=True)
                 return
 
-            modal = discord.ui.Modal(title="edit", custom_id=str(message.id))
+            modal = discord.ui.Modal(title="Edit an event", custom_id=str(message.id))
             modal.add_item(discord.ui.TextInput(label="Title", custom_id="title", default=data["title"]))
-            modal.add_item(discord.ui.TextInput(label="Description", custom_id="description", default=data["description"], style=discord.TextStyle.long))
+            modal.add_item(discord.ui.TextInput(label="Description", custom_id="description", required=False, default=data["description"], style=discord.TextStyle.long))
             modal.add_item(discord.ui.TextInput(label="Time", custom_id="time", default=data["time"]))
 
             async def on_submit(interaction: discord.Interaction):
@@ -162,7 +155,7 @@ def load(bot):
                 data = db.execute("UPDATE events SET title = ?, description = ?, time = ? WHERE id = ?", [title, desc, time, event_id]).fetchone()
                 db.commit()
                 await update_event(interaction.channel.id, event_id)
-                await interaction.response.send_message("OK", ephemeral=True)
+                await interaction.response.send_message("ok", ephemeral=True, delete_after=0)
 
             modal.on_submit = on_submit
             await interaction.response.send_modal(modal)

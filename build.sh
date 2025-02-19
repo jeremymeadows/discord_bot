@@ -1,7 +1,7 @@
 #!/bin/sh
 
 name=old-tom
-version=1.3.2
+version=1.3.3
 
 
 USER=root
@@ -24,7 +24,7 @@ if [ "$1" = "--deploy" ]; then
     docker image save $name:$version | ssh -i $IDENTITY_KEY $USER@$REMOTE_HOST "docker image load"
     ssh -i $IDENTITY_KEY $USER@$REMOTE_HOST << END
         cd $APP_ROOT
-        mkdir data
+        mkdir -p data
 
         docker image tag $name:$version $name:latest
         docker compose down
