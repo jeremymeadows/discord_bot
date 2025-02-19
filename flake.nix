@@ -10,18 +10,23 @@
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
 
-    requirements = with pkgs; [
-      (python3.withPackages(p: with p; [
+    python = pkgs.python312;
+
+    dependencies = with pkgs; [
+      (python.withPackages(p: with p; [
         discordpy
         python-dotenv
         pytz
       ]))
     ];
+    devtools = with pkgs; [
+      sqlite
+    ];
   in
   {
     # `nix develop`
     devShells.${system}.default = pkgs.mkShell {
-      packages = requirements;
+      packages = dependencies ++ devtools;
       #shellHook = ''
         #python bot.py
       #'';
@@ -31,11 +36,11 @@
     build.${system}.default = pkgs.dockerTools.buildImage {
       name = "old-tom";
       copyToRoot = pkgs.buildEnv {
-        paths = requirements;
+        paths = dependencies;
       };
       config = {
         Cmd = [
-          "${pkgs.python3}/bin/python" "bot.py"
+          "${python}/bin/python" "bot.py"
         ];
       };
     };

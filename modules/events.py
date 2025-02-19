@@ -72,7 +72,6 @@ def load(bot):
             db.execute("CREATE TABLE channels(id NOT NULL, guild NOT NULL, PRIMARY KEY (guild))")
             db.execute("CREATE TABLE events(id NOT NULL, title, description, time, commander, PRIMARY KEY (id))")
             db.execute("CREATE TABLE signups(user_id NOT NULL, event_id NOT NULL, spec, notes, PRIMARY KEY(user_id, event_id))")
-            db.execute("CREATE TABLE templates(id NOT NULL, guild, data, PRIMARY KEY (id))")
             db.commit()
         print("events database connected")
 
@@ -134,8 +133,43 @@ def load(bot):
             await interaction.followup.send(post.jump_url, ephemeral=True)
 
 
-        @bot.tree.context_menu(name="mark-complete")
-        async def mark_complete(interaction: discord.Interaction, message: discord.Message) -> None:
+        async def update_event(channel_id: int, event_id: int):
+            if not (event := db.execute("SELECT title, description, time, commander FROM events WHERE id = ?", [event_id]).fetchone()):
+                return
+
+            event = Event(**event)
+            team = db.execute("SELECT user_id, spec, notes FROM signups WHERE event_id = ?", [event_id]).fetchall()
+            event.team = [f"{row['spec']} {row['user_id']}" + (f" ({row['notes']})" if row["notes"] else "") for row in team]
+
+            message = await bot.get_channel(channel_id).fetch_message(event_id)
+            await message.edit(content=event)
+
+
+        @bot.tree.context_menu(name="ev-edit")
+        async def ev_edit(interaction: discord.Interaction, message: discord.Message) -> None:
+            if not (data := db.execute("SELECT title, description, time, commander FROM events WHERE id = ?", [message.id]).fetchone()):
+                await interaction.response.send_message("Invalid Event", ephemeral=True)
+                return
+
+            modal = discord.ui.Modal(title="edit", custom_id=str(message.id))
+            modal.add_item(discord.ui.TextInput(label="Title", custom_id="title", default=data["title"]))
+            modal.add_item(discord.ui.TextInput(label="Description", custom_id="description", default=data["description"], style=discord.TextStyle.long))
+            modal.add_item(discord.ui.TextInput(label="Time", custom_id="time", default=data["time"]))
+
+            async def on_submit(interaction: discord.Interaction):
+                event_id = int(interaction.data["custom_id"])
+                title, desc, time = map(lambda e: e["components"][0]["value"], interaction.data["components"])
+                data = db.execute("UPDATE events SET title = ?, description = ?, time = ? WHERE id = ?", [title, desc, time, event_id]).fetchone()
+                db.commit()
+                await update_event(interaction.channel.id, event_id)
+                await interaction.response.send_message("OK", ephemeral=True)
+
+            modal.on_submit = on_submit
+            await interaction.response.send_modal(modal)
+
+
+        @bot.tree.context_menu(name="ev-complete")
+        async def ev_complete(interaction: discord.Interaction, message: discord.Message) -> None:
             content = message.content
             try:
                 db.execute("DELETE FROM signups WHERE event_id = ?", [message.id])
@@ -169,27 +203,17 @@ def load(bot):
                         next_view.add_item(discord.ui.Button(emoji=icon, custom_id=f"spec-{spec}-{event_id}"))
                     await interaction.response.send_message("Select your specialization:", ephemeral=True, view=next_view)
                 case ["spec", spec, event_id]:
-                    data = db.execute("SELECT title, description, time, commander FROM events WHERE id = ?", [int(event_id)]).fetchone()
                     icon = next(filter(lambda emoji: spec.lower() in emoji.name.lower(), emojis))
-                    db.execute("INSERT INTO signups VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET spec=excluded.spec, notes=excluded.notes", [interaction.user.mention, event_id, f"<:{icon.name}:{icon.id}>", ""])
+                    db.execute("INSERT INTO signups VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET spec=excluded.spec, notes=excluded.notes", [interaction.user.mention, int(event_id), f"<:{icon.name}:{icon.id}>", ""])
                     db.commit()
 
-                    event = Event(**data)
-                    team = db.execute("SELECT user_id, spec, notes FROM signups WHERE event_id = ?", [event_id]).fetchall()
-                    event.team = [f"{row['spec']} {row['user_id']}" + (f" ({row['notes']})" if row["notes"] else "") for row in team]
-
-                    message = await interaction.channel.fetch_message(event_id)
-                    await message.edit(content=event)
+                    await update_event(interaction.channel.id, int(event_id))
                     await interaction.response.send_message(f"Registered as {spec}", ephemeral=True)
-                case ["backout"]:
-                    data = db.execute("SELECT title, description, time, commander FROM events WHERE id = ?", [interaction.message.id]).fetchone()
+                case ["signout"]:
                     db.execute("DELETE FROM signups WHERE event_id = ? AND user_id = ?", [interaction.message.id, interaction.user.mention])
                     db.commit()
 
-                    event = Event(**data)
-                    team = db.execute("SELECT user_id, spec, notes FROM signups WHERE event_id = ?", [interaction.message.id]).fetchall()
-                    event.team = [f"{row['spec']} {row['user_id']}" + (f" ({row['notes']})" if row["notes"] else "") for row in team]
-                    await interaction.message.edit(content=event)
+                    await update_event(interaction.channel.id, interaction.message.id)
                     await interaction.response.send_message("Removed from event", ephemeral=True)
                 case _:
                     return
